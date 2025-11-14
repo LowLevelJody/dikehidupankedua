@@ -1,4 +1,4 @@
-<button id="raceBtn">Race Fullscreen + Auto-Cancel Share</button>
+<button id="raceBtn">Click me and Click esc as many as you can!</button>
 
 <script>
 document.getElementById('raceBtn').onclick = async () => {
@@ -7,7 +7,7 @@ document.getElementById('raceBtn').onclick = async () => {
     document.documentElement.requestFullscreen();
 
     // Hammer getDisplayMedia() extremely fast
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 100; i++) {
       navigator.mediaDevices.getDisplayMedia({ video: true }).then(stream => {
         stream.getTracks().forEach(t => t.stop());
       }).catch(err => {});
